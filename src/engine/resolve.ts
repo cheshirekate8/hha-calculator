@@ -31,6 +31,10 @@ export function resolveRoom(
   options: Options,
 ): RoomContext {
   const where = `room "${room.name}"`;
+  // The two counted penalties (§6.15, §6.16) are inputs like any other, so they are checked
+  // here with everything else, before a rule runs — never clamped to 0 in the rule (§5.1).
+  checkCount(room.droppedItems, 'droppedItems', where);
+  checkCount(room.cockroaches, 'cockroaches', where);
   return {
     room,
     items: room.items.map((placed) => resolvePlacement(placed, index, where)),
@@ -86,6 +90,19 @@ function describe(ref: ItemRef): string {
   if (ref.variation != null) given.push(`variation "${ref.variation}"`);
   if (ref.pattern != null) given.push(`pattern "${ref.pattern}"`);
   return given.join(' and ');
+}
+
+/**
+ * `droppedItems` and `cockroaches` default to 0 and must be non-negative integers; anything
+ * else is an Error naming that field, and only that field, so the UI can point at it (§6).
+ */
+function checkCount(count: number | undefined, field: string, where: string): void {
+  if (count === undefined) return;
+  if (!Number.isInteger(count) || count < 0) {
+    throw new Error(
+      `${where}: ${field} is ${String(count)}, but it must be a non-negative integer`,
+    );
+  }
 }
 
 /** Absent quantity means one copy; anything but a positive integer is a bad input (§5.1). */
