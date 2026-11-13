@@ -29,7 +29,7 @@ RUN echo '{"private":true}' > package.json \
       react-dom@19.3.1 \
       typescript@6.0.3 \
       vite@8.3.5 \
-      vitest@5.0.5 \
+      vitest@5.1.0 \
     && ln -s /opt/deps/node_modules /node_modules \
     && rm -rf /root/.npm
 ENV PATH=/node_modules/.bin:$PATH
