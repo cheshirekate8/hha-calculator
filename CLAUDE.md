@@ -72,6 +72,9 @@ Run a task's acceptance tests with `sh tools/run-acceptance.sh tests/acceptance/
 The npm packages are installed above the clone at `/node_modules`; there is no
 `node_modules` in the workspace and you must not create one.
 
+The Beads section below is for interactive sessions on the host. Inside the container there
+is no `bd` and no Beads database: never run `bd` or try to create one there.
+
 
 <!-- BEGIN BEADS INTEGRATION v:1 profile:minimal hash:6cd5cc61 -->
 ## Beads Issue Tracker

@@ -76,7 +76,13 @@ tests are another.
   seasonal lists name (§4.3).
 
 ### 4.2 The import
-`scripts/import-catalog` reads the pinned raw files and writes a compact
+**Upstream input is vendored at planning time, by the host.** Pipeline containers have no
+network, so the pinned sheets are copied into `data/upstream/` before the import task
+runs, with translations and image fields removed (28.5 MB raw, about 8.3 MB stripped and
+minified) and the commit SHA recorded in `data/SOURCE.md`. Nothing else is changed in
+that copy. Refreshing it is a planning-session step, never a task.
+
+`scripts/import-catalog` reads `data/upstream/` and writes a compact
 `src/data/catalog.json` committed to the repo. Upstream `Housewares.json` alone is 15 MB,
 so the import keeps only the fields below and drops translations and images.
 
@@ -268,15 +274,22 @@ Accessible by keyboard; usable at phone width. Item images are not shipped in v1
 - §2's sum invariant is asserted on every engine test result.
 - Calibration fixtures (§9) run in the same suite.
 - Pipeline acceptance tests live in `tests/acceptance/<issue-id>/` and are frozen at
-  planning time. The verify command, the build gate and the frozen paths are fixed at
-  onboarding.
+  planning time. They run under **Node's built-in test runner** (`node:test`, TypeScript
+  through type stripping) via the frozen `tools/run-acceptance.sh`, not under Vitest: a
+  task can edit a Vitest config and change what judges it, while the runner script is
+  frozen and Node's runner has no config. That is why the code is erasable TypeScript
+  only and relative imports carry `.ts` extensions (see `CLAUDE.md`).
+- Vitest is the project's own suite (`tests/unit/`), run as the pipeline's
+  `regressionCommand`. That is evidence, not a gate.
+- The build gate is `tsc --noEmit -p tsconfig.json && vite build`, with `tsconfig.json`
+  frozen so a task cannot loosen type checking to pass it.
 
 ## 12. Build phases
 
 Ticked boxes carry the issue id that ticked them, for example `- [x] … (hha-abc)`.
 
 **Phase 1: foundation**
-- [ ] Project scaffold: Vite, React, TypeScript, Vitest, lint, a GitHub Pages build (§3)
+- [ ] Project scaffold: Vite, React, TypeScript, Vitest, a GitHub Pages build (§3)
 - [ ] Catalog import from the pinned upstream, set membership, compact `catalog.json` (§4.1, §4.2)
 - [ ] Curated lucky, seasonal and trash lists, validated against the catalog (§4.3)
 - [ ] Engine types, `score()` skeleton, breakdown-line model and the sum invariant (§2, §5)
@@ -308,6 +321,7 @@ a planning-session decision. Never by a version number.
 | Ref | Date | Change | Why |
 |---|---|---|---|
 | `initial-design` | 2026-11-13 | First design: scope, invariants, data plan, input model, 16 rules, rank, options, calibration, phases. Stack (§3) approved | Planning session. Input is lists plus placement tags, chosen over a grid editor. Disputed rules use the majority reading with toggles. |
+| `pipeline-onboarding` | 2026-11-13 | §11: acceptance tests run under `node:test` through frozen `tools/run-acceptance.sh`; Vitest becomes the regression suite; build gate is `tsc` plus `vite build` with `tsconfig.json` frozen. §4.2: upstream sheets vendored at planning time into `data/upstream/`. §12: lint dropped from the scaffold. | Onboarding. A gate a task can configure is not a gate. Containers are offline, so the import's input must be in the repo. Lint adds dependencies and judges nothing the build and tests don't already check. |
 
 ## Sources
 

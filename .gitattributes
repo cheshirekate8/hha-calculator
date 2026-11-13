@@ -1,0 +1,7 @@
+# Normalise text to LF in the repo. Pipeline tasks run in Linux containers; a CRLF shell
+# script breaks there, and a line-ending-only diff in a frozen path reads as tampering.
+* text=auto eol=lf
+*.sh text eol=lf
+*.png binary
+*.jpg binary
+*.webp binary

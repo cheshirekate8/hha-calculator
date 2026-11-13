@@ -8,3 +8,9 @@ dist/
 *.db
 .beads-credential-key
 .beads/proxieddb/
+
+# Agent hooks are host-only (pipeline ONBOARDING.md step 6): a task container has no bd
+# and no network, so a committed hook could only misfire there. They stay on disk.
+.claude/settings.local.json
+.codex/hooks.json
+.codex/config.toml
