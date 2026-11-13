@@ -6,7 +6,8 @@
 //
 // The total is the sum of its lines (§2.2): each room's total is the sum of its lines, the
 // house total is the sum of the house-scope lines, and `total` is every room total plus
-// the house total. There is no adjustment anywhere else in this file.
+// the house total. There is no adjustment anywhere else in this file. `rank` (§7) reads
+// that total and the stage; it never changes either.
 //
 // Every rule is registered below. A rule not yet implemented returns no lines (DESIGN.md §12).
 import { baseRule } from './rules/base.ts';
@@ -25,6 +26,7 @@ import { trashRule } from './rules/trash.ts';
 import { facingWallRule } from './rules/facing-wall.ts';
 import { droppedRule } from './rules/dropped.ts';
 import { cockroachRule } from './rules/cockroach.ts';
+import { computeRank } from './rank.ts';
 import { indexItems, resolveRoom } from './resolve.ts';
 import type {
   Catalog,
@@ -91,11 +93,15 @@ export function score(house: House, catalog: Catalog, options?: Partial<Options>
     options: resolvedOptions,
   };
   const houseLines = runHouseRules(houseContext);
+  const houseTotal = sum(houseLines);
+  const total = rooms.reduce((running, room) => running + room.total, 0) + houseTotal;
 
   return {
-    total: rooms.reduce((running, room) => running + room.total, 0) + sum(houseLines),
+    total,
     rooms,
-    house: { total: sum(houseLines), lines: houseLines },
+    house: { total: houseTotal, lines: houseLines },
+    // The rank describes the total; it adds no points of its own (§2.2, §7).
+    rank: computeRank(total, house.stage),
   };
 }
 

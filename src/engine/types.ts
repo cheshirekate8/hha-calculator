@@ -152,11 +152,35 @@ export type RoomResult = {
   lines: Line[];
 };
 
+export type RankLetter = 'B' | 'A' | 'S';
+
+/** The lowest reward not yet reached, with the points still needed for it (§7). */
+export type NextReward = {
+  reward: string;
+  points: number;
+  /** The reward's threshold minus the total; always positive. */
+  needed: number;
+};
+
+/**
+ * The house's standing at its total (§7): the letter for the stage's cutoffs, the highest
+ * reward whose threshold the total has reached (`null` below 10,000), and the next reward
+ * (`null` at 150,000 and above).
+ */
+export type Rank = {
+  stage: Stage;
+  letter: RankLetter;
+  reward: string | null;
+  next: NextReward | null;
+};
+
 export type Result = {
   total: number;
   /** Same order as `house.rooms`. */
   rooms: RoomResult[];
   house: { total: number; lines: Line[] };
+  /** Derived from `total` and `house.stage` alone (§7). */
+  rank: Rank;
 };
 
 // --- What a rule is given ---
