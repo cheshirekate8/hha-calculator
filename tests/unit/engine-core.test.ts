@@ -38,7 +38,7 @@ const catalog: Catalog = {
     item('lamp', 103),
     item('simple flooring', 201, 'Floors'),
     item('simple wallpaper', 451, 'Wallpaper'),
-    item('spoiled turnips', 0, 'Other'),
+    item('zero-point prop', 0),
   ],
   sets: {},
 };
@@ -113,7 +113,7 @@ describe('base points (§6.1)', () => {
     const result = scored(
       houseOf(
         { name: 'Empty', items: [] },
-        { name: 'Bin', items: [{ name: 'spoiled turnips', quantity: 4, surface: 'floor' }] },
+        { name: 'Bare', items: [{ name: 'zero-point prop', quantity: 4, surface: 'floor' }] },
       ),
     );
     expect(result.total).toBe(0);
