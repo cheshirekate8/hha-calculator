@@ -452,13 +452,13 @@ could not be a task in the same batch as anything else.
 **Phase 2: the rules engine** (done interactively first: an empty placeholder file for
 every remaining rule, all registered in `score.ts`, plus `src/engine/curated.ts`, so
 the seven tasks below touch disjoint files and can run in one batch)
-- [ ] Furniture count and wall-hung items (§6.2, §6.3)
-- [ ] Series and set completion (§6.4, §6.5)
-- [ ] Concept and category, with the `categoryBonus` option (§6.6, §6.7, §8)
-- [ ] Color and feng shui, with the `fengShui` option (§6.8, §6.9, §8)
-- [ ] House-level rules: lucky, seasonal and type (§6.10–6.12)
-- [ ] Penalties (§6.13–6.16)
-- [ ] Rank and rewards (§7)
+- [x] Furniture count and wall-hung items (§6.2, §6.3) (hha-4vl)
+- [x] Series and set completion (§6.4, §6.5) (hha-ny7)
+- [x] Concept and category, with the `categoryBonus` option (§6.6, §6.7, §8) (hha-bu0)
+- [x] Color and feng shui, with the `fengShui` option (§6.8, §6.9, §8) (hha-09f)
+- [x] House-level rules: lucky, seasonal and type (§6.10–6.12) (hha-bku)
+- [x] Penalties (§6.13–6.16) (hha-a1o)
+- [x] Rank and rewards (§7) (hha-80n)
 
 **Phase 3: the app**
 - [ ] House setup and room editor with catalog search (§10.1, §10.2)
