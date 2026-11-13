@@ -237,6 +237,14 @@ Line       { rule: RuleId, points: number, detail: string, items: string[] }
 - `RULES[id]` is `{ section, scope: "room" | "house", confidence: "supported" |
   "disputed" | "unknown", source }` for each of the 16 ids in §6.
 
+Inside the engine, `score()` resolves the whole house against the catalog first
+(`src/engine/resolve.ts`), so a bad reference is an error before any rule runs, and then
+hands each rule a read-only context: a `RoomContext` (the room, its resolved items,
+wallpaper and flooring, the catalog, the house and the merged options) or a `HouseContext`
+(the house and every room's context). A rule is a function from its context to the lines it
+awards — none when it awards nothing — living in `src/engine/rules/<id>.ts` and registered
+in `score.ts`. Totals are summed only in `score.ts`, never adjusted by a rule.
+
 ## 6. Scoring rules
 
 Each rule has a stable id that appears on every breakdown line it produces. **Scope** says
@@ -410,6 +418,7 @@ a planning-session decision. Never by a version number.
 | `initial-design` | 2026-11-13 | First design: scope, invariants, data plan, input model, 16 rules, rank, options, calibration, phases. Stack (§3) approved | Planning session. Input is lists plus placement tags, chosen over a grid editor. Disputed rules use the majority reading with toggles. |
 | `pipeline-onboarding` | 2026-11-13 | §11: acceptance tests run under `node:test` through frozen `tools/run-acceptance.sh`; Vitest becomes the regression suite; build gate is `tsc` plus `vite build` with `tsconfig.json` frozen. §4.2: upstream sheets vendored at planning time into `data/upstream/`. §12: lint dropped from the scaffold. | Onboarding. A gate a task can configure is not a gate. Containers are offline, so the import's input must be in the repo. Lint adds dependencies and judges nothing the build and tests don't already check. |
 | `phase-1-planning` | 2026-11-13 | §4.1: import every placeable sheet (adds Gyroids, Fossils, Artwork, Fish, Insects, Sea Creatures); Other reduced to trash rows. §4.2: forgeries renamed "(forgery)"; new §4.2.1 pins the `catalog.json` format. §4.3: curated lists authored at planning time and matched exactly; kanji tee and resident's photo recorded as unresolved. New §5.1 pins the engine contract. §12: scaffold, upstream copy and curated lists done interactively; Phase 1 is two tasks; base points move into the engine-core task. | First planning session. Most lucky and seasonal items live in sheets the first draft left out. Tasks in one run cannot see each other's unmerged work, and every build needs the scaffold. Two parallel tasks need a written contract between them, and an engine-core task needs one real rule so its tests have something that can fail. |
+| `hha-6wy` | 2026-11-13 | §5.1: records the engine's internal shape — one resolution pass before any rule runs, a rule as a function from a `RoomContext` or `HouseContext` to the lines it awards, one file per rule under `src/engine/rules/`, and summing only in `score.ts`. | Engine core. Every Phase 2 rule task plugs into this seam, so the contract between them belongs in the design, not only in the code. No rule number or default reading changed. |
 
 ## Sources
 
