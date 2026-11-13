@@ -91,6 +91,12 @@ it. Refreshing it is a planning-session step, never a task.
 `src/data/catalog.json` committed to the repo. Upstream `Housewares.json` alone is 15 MB,
 so the import keeps only the fields below and drops translations and images.
 
+It is two files: `scripts/import-catalog.ts` is the CLI, owning the options, every path
+and all I/O; `scripts/build-catalog.ts` is the pure rows-in-catalog-out core, so the
+mapping is unit-testable (`tests/unit/build-catalog.test.ts`). Both use Node built-ins
+only. The committed file is written with one line per item and one per set — small enough
+to review in a diff, and byte-identical on every run of the same inputs.
+
 | Field kept | Upstream key | Used by |
 |---|---|---|
 | name, sheet | `name`, `sourceSheet` | identity, wall-hung (§6.3), trash (§6.13) |
@@ -150,6 +156,10 @@ This is the contract between the import and the engine. Absent upstream values b
 An upstream row with no `variations` becomes one variant built from the row's own
 `variation`, `pattern`, `colors`, `concepts` and `hhaCategory`. Category is
 recorded on the variant because 285 upstream items carry it only per variation.
+
+"Sorted" here means plain JavaScript string comparison (`<`), never `localeCompare`,
+whose order depends on ICU data. For JavaScript strings that is UTF-16 code-unit order,
+which agrees with code-point order for every name in the pinned data.
 
 ### 4.3 Hand-curated supplements
 The upstream JSON has no lucky flag, no seasonal flag, and no facing-wall flag
@@ -378,7 +388,7 @@ scaffold, and tasks in one run cannot see each other's unmerged work, so the sca
 could not be a task in the same batch as anything else.
 
 **Phase 1: foundation**
-- [ ] Catalog import: `catalog.json` in the §4.2.1 format, set membership, curated names validated (§4.1–4.3)
+- [x] Catalog import: `catalog.json` in the §4.2.1 format, set membership, curated names validated (§4.1–4.3) (hha-md3)
 - [ ] Engine core: types, `RULES`, `score()`, the sum invariant, and base points (§2, §5.1, §6.1)
 
 **Phase 2: the rules engine**
@@ -410,6 +420,7 @@ a planning-session decision. Never by a version number.
 | `initial-design` | 2026-11-13 | First design: scope, invariants, data plan, input model, 16 rules, rank, options, calibration, phases. Stack (§3) approved | Planning session. Input is lists plus placement tags, chosen over a grid editor. Disputed rules use the majority reading with toggles. |
 | `pipeline-onboarding` | 2026-11-13 | §11: acceptance tests run under `node:test` through frozen `tools/run-acceptance.sh`; Vitest becomes the regression suite; build gate is `tsc` plus `vite build` with `tsconfig.json` frozen. §4.2: upstream sheets vendored at planning time into `data/upstream/`. §12: lint dropped from the scaffold. | Onboarding. A gate a task can configure is not a gate. Containers are offline, so the import's input must be in the repo. Lint adds dependencies and judges nothing the build and tests don't already check. |
 | `phase-1-planning` | 2026-11-13 | §4.1: import every placeable sheet (adds Gyroids, Fossils, Artwork, Fish, Insects, Sea Creatures); Other reduced to trash rows. §4.2: forgeries renamed "(forgery)"; new §4.2.1 pins the `catalog.json` format. §4.3: curated lists authored at planning time and matched exactly; kanji tee and resident's photo recorded as unresolved. New §5.1 pins the engine contract. §12: scaffold, upstream copy and curated lists done interactively; Phase 1 is two tasks; base points move into the engine-core task. | First planning session. Most lucky and seasonal items live in sheets the first draft left out. Tasks in one run cannot see each other's unmerged work, and every build needs the scaffold. Two parallel tasks need a written contract between them, and an engine-core task needs one real rule so its tests have something that can fail. |
+| `hha-md3` | 2026-11-13 | §4.2: the import is a CLI (`scripts/import-catalog.ts`) over a pure core (`scripts/build-catalog.ts`), and the committed `catalog.json` is one line per item and per set. §4.2.1: "sorted" pinned to plain JavaScript `<`, not `localeCompare`. §12: catalog import ticked. | Catalog import task. Splitting I/O from the mapping makes the mapping unit-testable and keeps every path decision in one file. The frozen tests assert order with `a < b`, so the design had to say which comparison it means; one line per item keeps a 2.6 MB generated file reviewable. |
 
 ## Sources
 
