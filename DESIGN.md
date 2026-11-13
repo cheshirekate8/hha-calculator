@@ -416,6 +416,42 @@ plus the score from that Sunday's HHA letter, saved under
 
 Accessible by keyboard; usable at phone width. Item images are not shipped in v1.
 
+### 10.5 App modules: logic in plain TypeScript, screens as thin wiring
+All of the app's behaviour lives in plain `.ts` modules under `src/app/`, which the
+frozen acceptance runner can test directly. The React components only connect them to the
+page. The runner cannot load `.tsx` at all, so logic left inside a component could never
+be gated (§11).
+
+- **`src/app/model.ts`** (written at planning time): `AppState = { house, options }`,
+  `STAGES`, `SEASONS`, `ROOMS_BY_STAGE` (1, 1, 2, 3, 4, 5, 6), `DEFAULT_ROOM_NAMES`
+  (Main room, Back room, Left room, Right room, Upstairs, Basement) and `initialState()`.
+- **`src/app/state.ts`**: `reduce(state, action)`, pure and never mutating. Actions:
+  `setStage`, `setSeason`, `setOption`, `renameRoom`, `setWallpaper`, `setFlooring`,
+  `addItem`, `updateItem`, `removeItem`, `setDroppedItems`, `setCockroaches`,
+  `replace`. `setStage` resizes the rooms to `ROOMS_BY_STAGE`: new rooms get their
+  default name and no items; rooms past the new count are removed from the end; the
+  remaining rooms keep their contents. An action naming a room or item that does not exist
+  returns the same state object unchanged. The reducer does not validate values; the engine
+  does, and the screen shows its error.
+- **`src/app/search.ts`**: `searchCatalog(catalog, query, kind, limit = 50)` and
+  `variantLabel(variant)`. Matching ignores case and surrounding spaces, and an empty query
+  finds nothing. Results come in three groups: names starting with the query, then names
+  with a later word (after a space) starting with it, then names containing it anywhere
+  else. Each group keeps catalog order. `kind` is `"item"` (everything but Wallpaper and
+  Floors), `"wallpaper"` or `"flooring"`. `variantLabel` joins variation and pattern with
+  " / ", skipping nulls, or gives `"Default"` when both are null.
+- **`src/app/breakdown.ts`**: `buildBreakdown(result)`, plus `formatPoints` and
+  `formatTotal`. It turns an engine `Result` into display data: one section per room in
+  order, then a `"Whole house"` section. Each line gains its label, its §6 section, its
+  confidence from `RULES`, its display text, and its toggle if the rule is disputed (§8).
+- **`src/app/persist.ts`**: `serialize`, `parse`, `loadState`, `saveState`,
+  `exportFileName` and `STORAGE_KEY`. A saved file is
+  `{ "format": "hha-calculator", "version": 1, "house": …, "options": … }`. `parse`
+  checks the shape and returns `{ ok: true, state }` or `{ ok: false, error }`, naming the
+  field at fault. It does not check item names against the catalog; the engine does that.
+  Storage that is missing, invalid or throws falls back to `initialState()`, so a broken
+  save can never stop the app opening.
+
 ## 11. Testing and verification
 
 - The engine is tested at the rule level: one fixture house per rule that isolates it,
@@ -435,6 +471,11 @@ Accessible by keyboard; usable at phone width. Item images are not shipped in v1
   `regressionCommand`. That is evidence, not a gate.
 - The build gate is `tsc --noEmit -p tsconfig.json && vite build`, with `tsconfig.json`
   frozen so a task cannot loosen type checking to pass it.
+- **Screens** (Phase 3b) are verified by rendering them to HTML in the acceptance test:
+  `vite build --ssr` compiles the components for Node into a temporary folder, and
+  `react-dom/server`'s `renderToString` renders them with a given state. This needs no new
+  packages and was proven offline in the pipeline image. Interaction is covered by the
+  reducer tests of §10.5, so the render tests check what a given state displays.
 
 ## 12. Build phases
 
@@ -460,10 +501,17 @@ the seven tasks below touch disjoint files and can run in one batch)
 - [x] Penalties (§6.13–6.16) (hha-a1o)
 - [x] Rank and rewards (§7) (hha-80n)
 
-**Phase 3: the app**
+**Phase 3a: app logic** (`src/app/model.ts` written interactively first, so the four
+tasks touch disjoint files and can run in one batch)
+- [ ] State and house editing: `reduce()` (§10.5)
+- [ ] Catalog search and variant labels (§10.5)
+- [ ] Breakdown view model and number formatting (§10.3, §10.5)
+- [ ] Persistence: save format, validation, storage, export file name (§10.4, §10.5)
+
+**Phase 3b: the screens** (planned after 3a merges, because the screens use its modules)
 - [ ] House setup and room editor with catalog search (§10.1, §10.2)
 - [ ] Breakdown view with provenance badges and toggles (§10.3)
-- [ ] Persistence: autosave, export and import (§10.4)
+- [ ] Autosave, export and import wired to the page (§10.4)
 
 **Phase 4: evidence and release**
 - [ ] First calibration fixtures from real HHA letters (§9)
@@ -483,6 +531,7 @@ a planning-session decision. Never by a version number.
 | `hha-md3` | 2026-11-13 | §4.2: the import is a CLI (`scripts/import-catalog.ts`) over a pure core (`scripts/build-catalog.ts`), and the committed `catalog.json` is one line per item and per set. §4.2.1: "sorted" pinned to plain JavaScript `<`, not `localeCompare`. §12: catalog import ticked. | Catalog import task. Splitting I/O from the mapping makes the mapping unit-testable and keeps every path decision in one file. The frozen tests assert order with `a < b`, so the design had to say which comparison it means; one line per item keeps a 2.6 MB generated file reviewable. |
 | `hha-6wy` | 2026-11-13 | §5.1: records the engine's internal shape — one resolution pass before any rule runs, a rule as a function from a `RoomContext` or `HouseContext` to the lines it awards, one file per rule under `src/engine/rules/`, and summing only in `score.ts`. | Engine core. Every Phase 2 rule task plugs into this seam, so the contract between them belongs in the design, not only in the code. No rule number or default reading changed. |
 | `phase-2-planning` | 2026-11-13 | §5.1: every rule pre-registered with an empty placeholder file, a curated-list loader (`src/engine/curated.ts`), and the `Result.rank` contract. §6: readings fixed for every Phase 2 rule — which items each rule looks at, tie-breaks, what "unique" multiplies, set and category line shape, color share, penalty quantities, and validation of `droppedItems` and `cockroaches`; wall-hung widened from the Wall-mounted sheet to every sheet whose items can hang. | Second planning session. Seven rule tasks in one batch need disjoint files, and each needs its open readings decided before tests can pin a number. Paintings, photos and posters hang on walls too, and limiting wall-hung to one sheet would have missed the most common wall items. |
+| `phase-3-planning` | 2026-11-13 | New §10.5: app logic lives in plain-TypeScript modules under `src/app/` (model, state, search, breakdown, persist) with their contracts; React components are thin wiring. §11: screens are verified by an SSR render (`vite build --ssr` plus `renderToString`) in the acceptance test. §12: Phase 3 split into 3a (logic, four parallel tasks) and 3b (screens). `src/app/model.ts` written at planning time. | Third planning session. The frozen runner cannot load `.tsx`, so logic inside components could never be gated; plain modules can be gated completely. SSR rendering verifies screens with no new packages and was proven in the image. Screens need the logic modules merged first, and tasks in one run cannot see each other's unmerged work. |
 
 ## Sources
 
