@@ -8,9 +8,23 @@
 // house total is the sum of the house-scope lines, and `total` is every room total plus
 // the house total. There is no adjustment anywhere else in this file.
 //
-// Rules are added by registering them below; §6.1 is the only one implemented so far, so
-// every other rule produces no lines yet.
+// Every rule is registered below. A rule not yet implemented returns no lines (DESIGN.md §12).
 import { baseRule } from './rules/base.ts';
+import { countRule } from './rules/count.ts';
+import { wallHungRule } from './rules/wall-hung.ts';
+import { seriesRule } from './rules/series.ts';
+import { setRule } from './rules/set.ts';
+import { conceptRule } from './rules/concept.ts';
+import { categoryRule } from './rules/category.ts';
+import { colorRule } from './rules/color.ts';
+import { fengShuiRule } from './rules/feng-shui.ts';
+import { luckyRule } from './rules/lucky.ts';
+import { seasonalRule } from './rules/seasonal.ts';
+import { typeRule } from './rules/type.ts';
+import { trashRule } from './rules/trash.ts';
+import { facingWallRule } from './rules/facing-wall.ts';
+import { droppedRule } from './rules/dropped.ts';
+import { cockroachRule } from './rules/cockroach.ts';
 import { indexItems, resolveRoom } from './resolve.ts';
 import type {
   Catalog,
@@ -32,9 +46,28 @@ export const DEFAULT_OPTIONS = {
   facingWallScope: 'any-tagged',
 } as const satisfies Options;
 
-const ROOM_RULES: RoomRule[] = [baseRule];
+// Every §6 rule is registered here, in §6 order; an unimplemented rule returns no lines.
+const ROOM_RULES: RoomRule[] = [
+  baseRule,
+  countRule,
+  wallHungRule,
+  seriesRule,
+  setRule,
+  conceptRule,
+  categoryRule,
+  colorRule,
+  fengShuiRule,
+  trashRule,
+  facingWallRule,
+  droppedRule,
+  cockroachRule,
+];
 
-const HOUSE_RULES: HouseRule[] = [];
+const HOUSE_RULES: HouseRule[] = [
+  luckyRule,
+  seasonalRule,
+  typeRule,
+];
 
 export function score(house: House, catalog: Catalog, options?: Partial<Options>): Result {
   const resolvedOptions = resolveOptions(options);

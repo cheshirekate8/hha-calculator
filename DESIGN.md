@@ -246,6 +246,18 @@ Line       { rule: RuleId, points: number, detail: string, items: string[] }
   facingWallScope: "any-tagged" }` (§8). `score()` merges a partial `options` over it.
 - `RULES[id]` is `{ section, scope: "room" | "house", confidence: "supported" |
   "disputed" | "unknown", source }` for each of the 16 ids in §6.
+- **Every rule is registered** in `score.ts`, and each lives in
+  `src/engine/rules/<id>.ts`. A rule not yet implemented returns no lines, so
+  implementing one means editing only its own file.
+- **The curated lists** reach the rules through `src/engine/curated.ts` (`LUCKY`,
+  `SEASONAL`, `TRASH`). They are frozen engine rule data, so the engine imports them; the
+  catalog still always arrives as an argument.
+- **`Result.rank`** (§7) is `{ stage, letter: "B" | "A" | "S", reward: string | null,
+  next: { reward: string, points: number, needed: number } | null }`. `reward` is the
+  highest reward whose threshold `total` has reached, or `null` below 10,000. `next` is
+  the lowest reward not yet reached, with `needed` = its points − `total`, or `null` at
+  150,000 and above. Reward names are the catalog's exact spellings (`HHA pennant`,
+  `bronze HHA plaque` … `gold HHA trophy`).
 
 Inside the engine, `score()` resolves the whole house against the catalog first
 (`src/engine/resolve.ts`), so a bad reference is an error before any rule runs, and then
@@ -270,7 +282,7 @@ whether it is computed per room or once for the whole house.
 |---|---|---|---|---|
 | 6.1 | `base` | room | Sum of `hhaBasePoints` × quantity, for every placed item plus wallpaper and flooring | supported |
 | 6.2 | `count` | room | +1,000 at each of ≥6, ≥10, ≥15 and ≥20 furniture pieces (stacking, max 4,000) | supported (what counts as furniture: unknown) |
-| 6.3 | `wall-hung` | room | +400 per item with `surface = wall` from the Wall-mounted sheet, max 3 items (1,200) | supported |
+| 6.3 | `wall-hung` | room | +400 per item with `surface = wall` from a sheet whose items can hang (see readings), max 3 items (1,200) | supported |
 | 6.4 | `series` | room | If the room's largest series has ≥4 **unique** items: +1,000 × the number of items in that series. Only the largest series scores. | supported (unique-vs-all multiplier: unknown) |
 | 6.5 | `set` | room | For each set whose full membership (§4.2) is present: +800 × set size. A duplicate copy of a set scores nothing extra. | supported |
 | 6.6 | `concept` | room | If the room's largest concept has ≥5 items (duplicates count): +400 × the number of those items. An item counts toward each of its concepts. | supported |
@@ -288,12 +300,50 @@ whether it is computed per room or once for the whole house.
 **Readings this table fixes**, each `unknown` in the sources and a candidate for §9
 calibration:
 - **Unique** means a distinct item name. Two variants of one chair are one unique item.
-- **Furniture** (§6.2) means every placed item with `surface` floor, tabletop, wall or
-  ceiling, duplicates included. Wallpaper, flooring and rugs are not counted.
+- **Furniture** (§6.2) means every placed item, duplicates included, except items from
+  the Rugs sheet and trash (names in `trash.json`). Wallpaper and flooring are not placed items
+  and are never counted.
+- **Wall-hung items** (§6.3) are placed items with `surface` `wall` whose sheet is
+  Wall-mounted, Artwork, Photos or Posters: the sheets whose items can hang. Counted with
+  quantity, capped at 3. The line's `items` names every qualifying item, even past the cap.
 - **Item color match** (§6.8, §6.9): an item matches color C if either of its two variant
   colors is C. The color-bonus share is matching items ÷ all items, counted with quantity.
-- **Series multiplier** (§6.4) is every item in the series, duplicates included, once the
-  unique threshold is met.
+- **Which items a room rule looks at.** Series, set, concept and category (§6.4–6.7) look
+  at the room's placed items **plus its wallpaper and flooring**, each of those two counted
+  once. Color (§6.8) looks at placed items only, as the source says. Feng shui (§6.9) looks
+  at placed items only, because only they carry `nearWall`.
+- **Series** (§6.4): the room's series are ranked by unique item count; a tie goes to the
+  series name that sorts first under plain `<`. If the winner has ≥4 unique items, the
+  line is 1,000 × every item in that series, duplicates included.
+- **Set** (§6.5): a set is complete when every name in `catalog.sets[set]` is in the room.
+  Each complete set adds 800 × its member count, once, however many copies are present.
+  One line for the room, summing every complete set.
+- **Concept** (§6.6): an item counts toward each concept its variant lists. Concepts are
+  ranked by item count with duplicates; a tie goes to the name that sorts first. If the
+  winner has ≥5, the line is 400 × that count.
+- **Category** (§6.7): categories come from the placed variant's `category`. A category
+  qualifies with ≥3 unique items; a `null` category is no category. `per-category` adds 500 per qualifying category;
+  `per-item` adds 500 × the unique items in each qualifying category.
+- **Color** (§6.8): the share for color C is (placed items whose variant colors include C,
+  with quantity) ÷ (all placed items, with quantity). Items with no colors count in the
+  total and match nothing. The best color is the highest share, with ties going to the
+  name that sorts first. At ≥90% the line is 600 × the unique items matching it; at ≥70%,
+  200 × the unique items matching it. Needs ≥8 placed items counted with quantity.
+- **Feng shui** (§6.9) adds 500 for each of east/Red, south/Green and west/Yellow where
+  a placed item with that `nearWall` has that color among its variant colors. With
+  `fengShui: "off"` it adds nothing.
+- **Type** (§6.12) matches tags and interact values exactly: `TableClock` is not a table, and
+  a `Dresser` tag alone does not fill the wardrobe-or-dresser slot. Its line's `items`
+  names every item that fills any slot.
+- **Lucky and seasonal** (§6.10, §6.11) look at placed items in every room. Each unique
+  name scores once for the house however many copies there are. Seasonal uses
+  `house.season`.
+- **Penalties** (§6.13–6.16) multiply by quantity: −500 per trash item and −300 per item
+  with `facingWall: true`, each × quantity. `droppedItems` and `cockroaches` default to
+  0 and must be non-negative integers, or `score()` throws an Error naming the field.
+- **One line per rule.** A room rule adds at most one line per room, and a house rule at
+  most one line, summing everything it awards. `items` lists the catalog names credited,
+  each once.
 - **Type-bonus detection**: chair = `tag` Chair or `interact` Chair; table = `tag` Table;
   bed = `tag` Bed or `interact` Bed; wardrobe or dresser = `interact` Wardrobe or
   `hhaCategory` Dresser.
@@ -399,7 +449,9 @@ could not be a task in the same batch as anything else.
 - [x] Catalog import: `catalog.json` in the §4.2.1 format, set membership, curated names validated (§4.1–4.3) (hha-md3)
 - [x] Engine core: types, `RULES`, `score()`, the sum invariant, and base points (§2, §5.1, §6.1) (hha-6wy)
 
-**Phase 2: the rules engine**
+**Phase 2: the rules engine** (done interactively first: an empty placeholder file for
+every remaining rule, all registered in `score.ts`, plus `src/engine/curated.ts`, so
+the seven tasks below touch disjoint files and can run in one batch)
 - [ ] Furniture count and wall-hung items (§6.2, §6.3)
 - [ ] Series and set completion (§6.4, §6.5)
 - [ ] Concept and category, with the `categoryBonus` option (§6.6, §6.7, §8)
@@ -430,6 +482,7 @@ a planning-session decision. Never by a version number.
 | `phase-1-planning` | 2026-11-13 | §4.1: import every placeable sheet (adds Gyroids, Fossils, Artwork, Fish, Insects, Sea Creatures); Other reduced to trash rows. §4.2: forgeries renamed "(forgery)"; new §4.2.1 pins the `catalog.json` format. §4.3: curated lists authored at planning time and matched exactly; kanji tee and resident's photo recorded as unresolved. New §5.1 pins the engine contract. §12: scaffold, upstream copy and curated lists done interactively; Phase 1 is two tasks; base points move into the engine-core task. | First planning session. Most lucky and seasonal items live in sheets the first draft left out. Tasks in one run cannot see each other's unmerged work, and every build needs the scaffold. Two parallel tasks need a written contract between them, and an engine-core task needs one real rule so its tests have something that can fail. |
 | `hha-md3` | 2026-11-13 | §4.2: the import is a CLI (`scripts/import-catalog.ts`) over a pure core (`scripts/build-catalog.ts`), and the committed `catalog.json` is one line per item and per set. §4.2.1: "sorted" pinned to plain JavaScript `<`, not `localeCompare`. §12: catalog import ticked. | Catalog import task. Splitting I/O from the mapping makes the mapping unit-testable and keeps every path decision in one file. The frozen tests assert order with `a < b`, so the design had to say which comparison it means; one line per item keeps a 2.6 MB generated file reviewable. |
 | `hha-6wy` | 2026-11-13 | §5.1: records the engine's internal shape — one resolution pass before any rule runs, a rule as a function from a `RoomContext` or `HouseContext` to the lines it awards, one file per rule under `src/engine/rules/`, and summing only in `score.ts`. | Engine core. Every Phase 2 rule task plugs into this seam, so the contract between them belongs in the design, not only in the code. No rule number or default reading changed. |
+| `phase-2-planning` | 2026-11-13 | §5.1: every rule pre-registered with an empty placeholder file, a curated-list loader (`src/engine/curated.ts`), and the `Result.rank` contract. §6: readings fixed for every Phase 2 rule — which items each rule looks at, tie-breaks, what "unique" multiplies, set and category line shape, color share, penalty quantities, and validation of `droppedItems` and `cockroaches`; wall-hung widened from the Wall-mounted sheet to every sheet whose items can hang. | Second planning session. Seven rule tasks in one batch need disjoint files, and each needs its open readings decided before tests can pin a number. Paintings, photos and posters hang on walls too, and limiting wall-hung to one sheet would have missed the most common wall items. |
 
 ## Sources
 
