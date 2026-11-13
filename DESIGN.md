@@ -379,7 +379,7 @@ could not be a task in the same batch as anything else.
 
 **Phase 1: foundation**
 - [ ] Catalog import: `catalog.json` in the §4.2.1 format, set membership, curated names validated (§4.1–4.3)
-- [ ] Engine core: types, `RULES`, `score()`, the sum invariant, and base points (§2, §5.1, §6.1)
+- [x] Engine core: types, `RULES`, `score()`, the sum invariant, and base points (§2, §5.1, §6.1) (hha-6wy)
 
 **Phase 2: the rules engine**
 - [ ] Furniture count and wall-hung items (§6.2, §6.3)
