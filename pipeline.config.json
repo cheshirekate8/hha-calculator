@@ -5,7 +5,10 @@
   "defaultBranch": "main",
   "frozenPaths": [
     "tools/run-acceptance.sh",
-    "tsconfig.json"
+    "tsconfig.json",
+    "data/upstream/",
+    "data/SOURCE.md",
+    "src/data/curated/"
   ],
   "dependencies": {
     "npm": [

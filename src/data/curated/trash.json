@@ -1,0 +1,10 @@
+{
+  "source": "chibisnorlax ACNH FAQ, Happy Home Academy page (updated 3 April 2022): https://chibisnorlax.github.io/acnhfaq/island-dev/hha/ (penalty); item names from the upstream Other sheet",
+  "note": "Trash on the floor costs -500 each (DESIGN.md §6.13). Garbage cans (hhaCategory Trash) are furniture, not trash, and are deliberately absent.",
+  "items": [
+    "boot",
+    "empty can",
+    "old tire",
+    "spoiled turnips"
+  ]
+}

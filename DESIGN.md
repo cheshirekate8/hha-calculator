@@ -70,17 +70,22 @@ tests are another.
 - Upstream: [Norviah/animal-crossing](https://github.com/Norviah/animal-crossing) (MIT),
   a JSON conversion of the community **ACNH data spreadsheet**. Pinned by commit SHA in
   `data/SOURCE.md`, with attribution to both the converter and the spreadsheet project.
-- Sheets imported: Housewares, Miscellaneous, Wall-mounted, Ceiling Decor, Wallpaper,
-  Floors, Rugs, Photos, Posters, Other (for trash). Clothing, creatures and tools are not
-  placeable furniture and are not imported, except the specific items the lucky and
-  seasonal lists name (§4.3).
+- **Sheets imported: every sheet whose rows a player can place in their house:**
+  Housewares, Miscellaneous, Wall-mounted, Ceiling Decor, Wallpaper, Floors, Rugs, Photos,
+  Posters, Gyroids, Fossils, Artwork, Fish, Insects, Sea Creatures, and Other reduced to
+  its four trash rows. Fish, insects, gyroids and fossils are placeable and carry base
+  points, and several lucky and seasonal items live there.
+- **Not imported:** clothing (not placeable in a player's house; dropped clothing is the
+  §6.15 penalty), tools, music, recipes, construction, fencing, and Happy Home Paradise
+  interior structures (§8).
 
 ### 4.2 The import
 **Upstream input is vendored at planning time, by the host.** Pipeline containers have no
 network, so the pinned sheets are copied into `data/upstream/` before the import task
-runs, with translations and image fields removed (28.5 MB raw, about 8.3 MB stripped and
-minified) and the commit SHA recorded in `data/SOURCE.md`. Nothing else is changed in
-that copy. Refreshing it is a planning-session step, never a task.
+runs, with translation, image and filename fields removed (29.4 MB raw, 8.2 MB copied)
+and the commit SHA recorded in `data/SOURCE.md`. Nothing else is changed in that copy
+except that the Other sheet keeps only its trash rows. `tools/vendor-upstream.mjs` does
+it. Refreshing it is a planning-session step, never a task.
 
 `scripts/import-catalog` reads `data/upstream/` and writes a compact
 `src/data/catalog.json` committed to the repo. Upstream `Housewares.json` alone is 15 MB,
@@ -94,7 +99,7 @@ so the import keeps only the fields below and drops translations and images.
 | set | `set` | §6.5 |
 | category | `hhaCategory` (item- or variation-level) | §6.7 |
 | concepts | `concepts` (per variation, up to 2) | §6.6 |
-| colors | `colors` (per variation, exactly 2) | §6.8, §6.9 |
+| colors | `colors` (per variation; usually 2, empty for 45 items such as trash) | §6.8, §6.9 |
 | tag, interact | `tag`, `interact` | type bonus (§6.12) |
 | variations | `variations[].variation`, plus the per-variation fields above | the user picks a variant |
 
@@ -103,21 +108,67 @@ and a blue version of the same chair score differently for color and feng shui, 
 house model stores the variant (§5).
 
 The import also derives **set membership**: for each `set` value, the distinct item names
-carrying it. §6.5 needs the full membership, which no single row gives.
+carrying it. §6.5 needs the full membership, which no single row gives. Sets can span
+sheets: the `bear` set is Mama bear, Papa bear and giant teddy bear (Housewares) plus
+Baby bear (Miscellaneous).
+
+**Item names are unique in the catalog.** Upstream names are unique across the imported
+sheets except Artwork, where a forgery shares the genuine piece's name. A forgery
+(`genuine: false`) is named `"<name> (forgery)"` in the catalog.
+
+#### 4.2.1 `catalog.json` format
+This is the contract between the import and the engine. Absent upstream values become
+`null`, or `[]` for lists.
+
+```
+{
+  "source": { "repo": "Norviah/animal-crossing", "commit": "<40-char sha from data/SOURCE.md>" },
+  "items": [                                  // sorted by name, code-point order
+    {
+      "name": string,                         // unique; forgeries suffixed " (forgery)"
+      "sheet": string,                        // upstream sourceSheet, e.g. "Wall-mounted"
+      "basePoints": number,                   // hhaBasePoints
+      "series": string | null,
+      "set": string | null,
+      "tag": string | null,
+      "interact": string | boolean | null,
+      "variants": [                           // upstream order; never empty
+        {
+          "variation": string | null,
+          "pattern": string | null,
+          "colors": string[],                 // variation's colors, else the item's
+          "concepts": string[],               // variation's concepts, else the item's
+          "category": string | null           // variation's hhaCategory, else the item's
+        }
+      ]
+    }
+  ],
+  "sets": { "<set>": [ "<item name>", ... ] } // keys sorted; names sorted, code-point order
+}
+```
+
+An upstream row with no `variations` becomes one variant built from the row's own
+`variation`, `pattern`, `colors`, `concepts` and `hhaCategory`. Category is
+recorded on the variant because 285 upstream items carry it only per variation.
 
 ### 4.3 Hand-curated supplements
 The upstream JSON has no lucky flag, no seasonal flag, and no facing-wall flag
 (`ItemHHADirection` exists in the original spreadsheet but not in the conversion, and the
 spreadsheet cannot be fetched without signing in). These live in `src/data/curated/`:
 
-- `lucky.json`: ACNH Nintendo Switch, Brewstoid, crescent-moon chair, gold bug trophy,
+- `lucky.json`: ACNH Nintendo Switch, brewstoid, crescent-moon chair, gold bug trophy,
   gold fish trophy, gold rose wreath, gold turtle figurine, golden candlestick, golden
-  samurai suit, kanji tee, katana, koi, lucky gold cat, Paradise Planning photo, pop-eyed
-  goldfish, ring, robot hero, resident's photo, and **every NPC photo except** Brewster's,
-  Isabelle's, Jingle's, Rover's, Timmy and Tommy's, and Tom Nook's.
+  samurai suit, katana, koi, lucky gold cat, Paradise Planning photo, pop-eyed goldfish,
+  ring, robot hero, and **every NPC photo except** Brewster's, Isabelle's, Jingle's,
+  Rover's, Timmy and Tommy's, and Tom Nook's (56 photos, enumerated from the upstream
+  Special NPCs sheet). The six excluded photos are also the only NPC photos with non-zero
+  base points, which supports the source's list.
+  **Unresolved, and recorded in the file's `unresolved` list rather than dropped:**
+  *kanji tee* (clothing, not placeable in a player's house) and *resident's photo* (no
+  item has that name).
 - `seasonal.json` (as listed by the source):
   - **Spring:** bamboo shelf, cherry-blossom bonsai, wobbling Zipper toy
-  - **Summer:** anchor statue, artisanal bug cage, horned hercules, napoleonfish,
+  - **Summer:** anchor statue, artisanal bug cage, horned hercules, Napoleonfish,
     palm-tree lamp, scorpion, shell wreath
   - **Autumn:** cricket, mush parasol, tree's bounty big tree
   - **Winter:** tarantula, frozen tree, stringfish
@@ -125,8 +176,10 @@ spreadsheet cannot be fetched without signing in). These live in `src/data/curat
   sheet). Garbage *cans* (`hhaCategory: "Trash"`) are furniture, not trash, and must
   never be penalised.
 
-Source for all three: the chibisnorlax ACNH FAQ, HHA page (updated 3 April 2022). A curated
-name with no matching catalog entry fails the import loudly rather than being skipped.
+Source for all three: the chibisnorlax ACNH FAQ, HHA page (updated 3 April 2022). The lists
+are authored at planning time, like the upstream copy. Names match catalog names
+**exactly**, case included (upstream spells `brewstoid` and `Napoleonfish`), and a curated
+name with no matching catalog item fails the import loudly rather than being skipped.
 
 ## 5. Input model
 
@@ -152,6 +205,37 @@ PlacedItem
 
 `nearWall` exists only for feng shui (§6.9). `facingWall` exists only for its penalty
 (§6.14). Trash is entered as an ordinary placed item and recognised from `trash.json`.
+
+### 5.1 The engine contract
+`src/engine/score.ts` exports `score(house, catalog, options?)` and `DEFAULT_OPTIONS`;
+`src/engine/rules.ts` exports `RULES`, the §6 registry. In JSON-compatible terms:
+
+```
+House      { stage: Stage, season: Season, rooms: Room[] }
+Room       { name: string, wallpaper?: ItemRef | null, flooring?: ItemRef | null,
+             items: PlacedItem[], droppedItems?: number, cockroaches?: number }
+ItemRef    { name: string, variation?: string | null, pattern?: string | null }
+PlacedItem ItemRef & { quantity?: number,            // default 1; a positive integer
+                       surface: "floor" | "tabletop" | "wall" | "ceiling",
+                       nearWall?: "north" | "east" | "south" | "west" | "none",
+                       facingWall?: boolean }
+
+Result     { total: number, rooms: RoomResult[], house: { total: number, lines: Line[] } }
+RoomResult { name: string, total: number, lines: Line[] }   // same order as house.rooms
+Line       { rule: RuleId, points: number, detail: string, items: string[] }
+```
+
+- An `ItemRef` names a catalog item exactly. With no `variation` or `pattern` it means
+  the item's first variant; otherwise it means the variant matching every field given.
+  An unknown name or an unmatched variant is an error naming it, never a silent zero.
+- **A line exists only for non-zero points.** A room or house that earns nothing has no
+  lines, so an empty house scores 0 with no lines under every future rule.
+- `room.total` is the sum of its lines, `house.total` the sum of its lines, and `total`
+  the sum of every room total plus the house total (§2.2).
+- `DEFAULT_OPTIONS` is `{ categoryBonus: "per-category", fengShui: "on",
+  facingWallScope: "any-tagged" }` (§8). `score()` merges a partial `options` over it.
+- `RULES[id]` is `{ section, scope: "room" | "house", confidence: "supported" |
+  "disputed" | "unknown", source }` for each of the 16 ids in §6.
 
 ## 6. Scoring rules
 
@@ -288,14 +372,17 @@ Accessible by keyboard; usable at phone width. Item images are not shipped in v1
 
 Ticked boxes carry the issue id that ticked them, for example `- [x] … (hha-abc)`.
 
+**Done interactively at planning time** (not pipeline tasks): the project scaffold (§3),
+the upstream copy (§4.2) and the curated lists (§4.3). Every task's build gate needs the
+scaffold, and tasks in one run cannot see each other's unmerged work, so the scaffold
+could not be a task in the same batch as anything else.
+
 **Phase 1: foundation**
-- [ ] Project scaffold: Vite, React, TypeScript, Vitest, a GitHub Pages build (§3)
-- [ ] Catalog import from the pinned upstream, set membership, compact `catalog.json` (§4.1, §4.2)
-- [ ] Curated lucky, seasonal and trash lists, validated against the catalog (§4.3)
-- [ ] Engine types, `score()` skeleton, breakdown-line model and the sum invariant (§2, §5)
+- [ ] Catalog import: `catalog.json` in the §4.2.1 format, set membership, curated names validated (§4.1–4.3)
+- [ ] Engine core: types, `RULES`, `score()`, the sum invariant, and base points (§2, §5.1, §6.1)
 
 **Phase 2: the rules engine**
-- [ ] Base points, furniture count and wall-hung items (§6.1–6.3)
+- [ ] Furniture count and wall-hung items (§6.2, §6.3)
 - [ ] Series and set completion (§6.4, §6.5)
 - [ ] Concept and category, with the `categoryBonus` option (§6.6, §6.7, §8)
 - [ ] Color and feng shui, with the `fengShui` option (§6.8, §6.9, §8)
@@ -322,6 +409,7 @@ a planning-session decision. Never by a version number.
 |---|---|---|---|
 | `initial-design` | 2026-11-13 | First design: scope, invariants, data plan, input model, 16 rules, rank, options, calibration, phases. Stack (§3) approved | Planning session. Input is lists plus placement tags, chosen over a grid editor. Disputed rules use the majority reading with toggles. |
 | `pipeline-onboarding` | 2026-11-13 | §11: acceptance tests run under `node:test` through frozen `tools/run-acceptance.sh`; Vitest becomes the regression suite; build gate is `tsc` plus `vite build` with `tsconfig.json` frozen. §4.2: upstream sheets vendored at planning time into `data/upstream/`. §12: lint dropped from the scaffold. | Onboarding. A gate a task can configure is not a gate. Containers are offline, so the import's input must be in the repo. Lint adds dependencies and judges nothing the build and tests don't already check. |
+| `phase-1-planning` | 2026-11-13 | §4.1: import every placeable sheet (adds Gyroids, Fossils, Artwork, Fish, Insects, Sea Creatures); Other reduced to trash rows. §4.2: forgeries renamed "(forgery)"; new §4.2.1 pins the `catalog.json` format. §4.3: curated lists authored at planning time and matched exactly; kanji tee and resident's photo recorded as unresolved. New §5.1 pins the engine contract. §12: scaffold, upstream copy and curated lists done interactively; Phase 1 is two tasks; base points move into the engine-core task. | First planning session. Most lucky and seasonal items live in sheets the first draft left out. Tasks in one run cannot see each other's unmerged work, and every build needs the scaffold. Two parallel tasks need a written contract between them, and an engine-core task needs one real rule so its tests have something that can fail. |
 
 ## Sources
 

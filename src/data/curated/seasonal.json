@@ -1,0 +1,28 @@
+{
+  "source": "chibisnorlax ACNH FAQ, Happy Home Academy page (updated 3 April 2022): https://chibisnorlax.github.io/acnhfaq/island-dev/hha/",
+  "note": "Season columns as the source lists them. A seasonal item scores only in its season (DESIGN.md §6.11).",
+  "spring": [
+    "bamboo shelf",
+    "cherry-blossom bonsai",
+    "wobbling Zipper toy"
+  ],
+  "summer": [
+    "anchor statue",
+    "artisanal bug cage",
+    "horned hercules",
+    "Napoleonfish",
+    "palm-tree lamp",
+    "scorpion",
+    "shell wreath"
+  ],
+  "autumn": [
+    "cricket",
+    "mush parasol",
+    "tree's bounty big tree"
+  ],
+  "winter": [
+    "tarantula",
+    "frozen tree",
+    "stringfish"
+  ]
+}
